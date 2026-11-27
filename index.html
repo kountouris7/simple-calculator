@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simple Calculator</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #F1EFE8; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px;
+  }
+  .calc { background: #fff; border: 1px solid #D3D1C7; border-radius: 16px; padding: 16px; width: 100%; max-width: 460px; }
+  .top { display: flex; justify-content: space-between; align-items: center; padding: 0 6px; min-height: 22px; }
+  #mode { border: 0; background: #F1EFE8; color: #444441; border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+  #history { font-size: 13px; color: #888780; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #display { text-align: right; font-size: 34px; font-weight: 500; color: #2C2C2A; padding: 6px 6px 14px; overflow-wrap: anywhere; min-height: 1.5em; }
+  .pads { display: grid; grid-template-columns: 3fr 4fr; gap: 12px; }
+  .grid { display: grid; gap: 8px; }
+  .sci { grid-template-columns: repeat(3, 1fr); }
+  .main { grid-template-columns: repeat(4, 1fr); }
+  button.k { height: 44px; border: 0; border-radius: 10px; font-size: 16px; cursor: pointer; background: #F1EFE8; color: #2C2C2A; font-family: inherit; }
+  button.k:active { transform: scale(0.97); }
+  button.k:focus-visible, #mode:focus-visible { outline: 2px solid #185FA5; outline-offset: 2px; }
+  .f { background: #E6F1FB !important; color: #0C447C !important; font-size: 14px !important; }
+  .o { background: #378ADD !important; color: #fff !important; }
+  .u { background: #D3D1C7 !important; color: #444441 !important; }
+  .eq { background: #185FA5 !important; color: #fff !important; }
+  .wide { grid-column: span 2; }
+  @media (max-width: 500px) {
+    .pads { grid-template-columns: 1fr; }
+    .sci { grid-template-columns: repeat(5, 1fr); }
+    button.k { height: 48px; }
+  }
+</style>
+</head>
+<body>
+<main class="calc">
+  <div class="top">
+    <button id="mode" type="button" aria-label="Angle mode, click to toggle">DEG</button>
+    <span id="history"></span>
+  </div>
+  <div id="display" aria-live="polite">0</div>
+  <div class="pads">
+    <div class="grid sci">
+      <button class="k f" data-in="sin(">sin</button>
+      <button class="k f" data-in="cos(">cos</button>
+      <button class="k f" data-in="tan(">tan</button>
+      <button class="k f" data-in="ln(">ln</button>
+      <button class="k f" data-in="log(">log</button>
+      <button class="k f" data-in="√(" aria-label="square root">√</button>
+      <button class="k f" data-in="^2" aria-label="square">x²</button>
+      <button class="k f" data-in="^" aria-label="power">xʸ</button>
+      <button class="k f" data-act="recip" aria-label="reciprocal">1/x</button>
+      <button class="k f" data-in="(">(</button>
+      <button class="k f" data-in=")">)</button>
+      <button class="k f" data-in="!" aria-label="factorial">n!</button>
+      <button class="k f" data-in="π" aria-label="pi">π</button>
+      <button class="k f" data-in="e">e</button>
+      <button class="k f" data-act="neg" aria-label="negate">±</button>
+    </div>
+    <div class="grid main">
+      <button class="k u" data-act="clear" aria-label="clear">C</button>
+      <button class="k u" data-act="back" aria-label="backspace">⌫</button>
+      <button class="k u" data-in="%" aria-label="percent">%</button>
+      <button class="k o" data-in="÷" aria-label="divide">÷</button>
+      <button class="k" data-in="7">7</button>
+      <button class="k" data-in="8">8</button>
+      <button class="k" data-in="9">9</button>
+      <button class="k o" data-in="×" aria-label="multiply">×</button>
+      <button class="k" data-in="4">4</button>
+      <button class="k" data-in="5">5</button>
+      <button class="k" data-in="6">6</button>
+      <button class="k o" data-in="−" aria-label="minus">−</button>
+      <button class="k" data-in="1">1</button>
+      <button class="k" data-in="2">2</button>
+      <button class="k" data-in="3">3</button>
+      <button class="k o" data-in="+" aria-label="plus">+</button>
+      <button class="k wide" data-in="0">0</button>
+      <button class="k" data-in="." aria-label="decimal point">.</button>
+      <button class="k eq" data-act="eval" aria-label="equals">=</button>
+    </div>
+  </div>
+</main>
+<script src="calc.js"></script>
+<script>
+  const display = document.getElementById('display');
+  const history = document.getElementById('history');
+  const modeBtn = document.getElementById('mode');
+  let expr = '';
+  let deg = true;
+  let justEvaluated = false;
+
+  const render = () => { display.textContent = expr || '0'; };
+
+  function input(s) {
+    // After "=", a digit/function starts fresh; an operator continues from the result.
+    if (justEvaluated && !/^[+×÷−^!%)]/.test(s)) expr = '';
+    if (expr === 'Error') expr = '';
+    justEvaluated = false;
+    // Only one decimal point per number.
+    if (s === '.' && /\d*\.\d*$/.test(expr)) return;
+    expr += s;
+    render();
+  }
+
+  const actions = {
+    clear() { expr = ''; history.textContent = ''; justEvaluated = false; render(); },
+    back() {
+      if (justEvaluated || expr === 'Error') return actions.clear();
+      expr = expr.replace(/(sin\(|cos\(|tan\(|ln\(|log\(|√\(|.)$/, '');
+      render();
+    },
+    recip() { if (expr && expr !== 'Error') { expr = '1÷(' + expr + ')'; justEvaluated = false; render(); } },
+    neg() { if (expr && expr !== 'Error') { expr = '−(' + expr + ')'; justEvaluated = false; render(); } },
+    eval() {
+      if (!expr || expr === 'Error') return;
+      const v = evaluate(expr, { deg });
+      history.textContent = expr + ' =';
+      expr = Number.isNaN(v) ? 'Error' : String(v);
+      justEvaluated = true;
+      render();
+    },
+  };
+
+  document.querySelector('.pads').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.in !== undefined) input(b.dataset.in);
+    else actions[b.dataset.act]();
+  });
+
+  modeBtn.addEventListener('click', () => {
+    deg = !deg;
+    modeBtn.textContent = deg ? 'DEG' : 'RAD';
+  });
+</script>
+</body>
+</html>
